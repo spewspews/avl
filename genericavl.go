@@ -72,7 +72,7 @@ func Make(treeStruct interface{}) error {
 	for name, tf := range fns {
 		fnVal := tsVal.Elem().FieldByName(name)
 		if !fnVal.IsValid() {
-			return nil
+			continue
 		}
 		if fnVal.Type() != tf.typ {
 			return fmt.Errorf("%s function should have signature: %v", name, tf.typ)
