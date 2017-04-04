@@ -1,3 +1,4 @@
+// Package genericavl implements a type-safe generic AVL balanced binary tree.
 package genericavl
 
 import (
@@ -6,15 +7,7 @@ import (
 	"reflect"
 )
 
-type tree struct {
-	root                   *Node
-	size                   int
-	elemType, lookupType   reflect.Type
-	insertType, deleteType reflect.Type
-	valueType              reflect.Type
-	cmp                    func(a, b reflect.Value) int8
-}
-
+// A Node of the balanced tree.
 type Node struct {
 	val reflect.Value
 	c   [2]*Node
@@ -22,92 +15,75 @@ type Node struct {
 	b   int8
 }
 
-func Make(treeStruct interface{}) error {
-	ts := reflect.ValueOf(treeStruct)
+// Setter provides access to the underlying Tree data structure
+// by passing the data structure to the interface's method.
+// This provides access to general Tree methods such as Min,
+// Max, Root, and Size.
+type Setter interface {
+	SetTree(*Tree)
+}
 
-	cmp := ts.MethodByName("Compare")
-	if err := checkCompare(cmp); err != nil {
-		return err
-	}
-
-	t := makeTree(cmp)
-
-	tf := treeFn{
-		treeFnVal: makeTreeFnVal(ts, "Lookup"),
-		impl:      t.lookup,
-		typ:       t.lookupType,
-	}
-	if err := tf.fill(); err != nil {
-		return err
-	}
-
-	tf = treeFn{
-		treeFnVal: makeTreeFnVal(ts, "Delete"),
-		impl:      t.delete,
-		typ:       t.deleteType,
-	}
-	if err := tf.fill(); err != nil {
-		return err
-	}
-
-	tf = treeFn{
-		treeFnVal: makeTreeFnVal(ts, "Insert"),
-		impl:      t.insert,
-		typ:       t.insertType,
-	}
-	if err := tf.fill(); err != nil {
-		return err
-	}
-
-	tf = treeFn{
-		treeFnVal: makeTreeFnVal(ts, "Value"),
-		impl:      t.value,
-		typ:       t.valueType,
-	}
-	if err := tf.fill(); err != nil {
-		return err
-	}
-
-	min := ts.Elem().FieldByName("Min")
-	if min.IsValid() {
-		min.Set(reflect.ValueOf(t.min))
-	}
-
-	max := ts.Elem().FieldByName("Max")
-	if max.IsValid() {
-		max.Set(reflect.ValueOf(t.max))
-	}
-
-	return nil
+// Tree is the internal representation of the data structure itself.
+type Tree struct {
+	root     *Node
+	elemType reflect.Type
+	size     int
+	cmp      func(a, b reflect.Value) int8
 }
 
 type treeFn struct {
-	treeFnVal
-	name string
 	impl func([]reflect.Value) []reflect.Value
 	typ  reflect.Type
 }
 
-type treeFnVal struct {
-	name string
-	reflect.Value
-}
+// Make fills in a structure treeStruct with Tree access and
+// manipulation functions. TreeStruct must be a pointer to
+// a struct with a pointer receiver method named Compare.
+// Compare must have the signature:
+//     func(a, b T) int
+// where T is an arbitrary type. Compare is the only method
+// that needs to be implemented and it should return an integer
+// less than, equal to, or greater than 0 depending on whether
+// the value a compares less than, equal to, or greater than 0,
+// respectively. The TreeStruct itself should contain
+// fields for functions of the following types:
+//    Insert func(T)
+//    Delete func(T)
+//    Lookup func(T) (T, bool)
+//    Value  func(*Node) T
+// Make will fill in these functions with implementations that
+// allow type-safe access to values in the tree. If any of the
+// functions are missing, then they will be skipped.
+//
+// If treeStruct implements the Setter interface, then Make will
+// pass the underlying Tree data structure to the SetTree method
+// to provide access to non type-specific methods defined on the
+// data structure such as, Min, Max, Root, and Size.
+func Make(treeStruct interface{}) error {
+	tsVal := reflect.ValueOf(treeStruct)
 
-func makeTreeFnVal(ts reflect.Value, name string) treeFnVal {
-	return treeFnVal{
-		name:  name,
-		Value: ts.Elem().FieldByName(name),
+	cmp := tsVal.MethodByName("Compare")
+	if err := checkCompare(cmp); err != nil {
+		return err
 	}
-}
 
-func (tf *treeFn) fill() error {
-	if !tf.IsValid() {
-		return nil
+	t, fns := makeTree(cmp)
+
+	for name, tf := range fns {
+		fnVal := tsVal.Elem().FieldByName(name)
+		if !fnVal.IsValid() {
+			return nil
+		}
+		if fnVal.Type() != tf.typ {
+			return fmt.Errorf("%s function should have signature: %v", name, tf.typ)
+		}
+		fnVal.Set(reflect.MakeFunc(tf.typ, tf.impl))
 	}
-	if tf.Type() != tf.typ {
-		return fmt.Errorf("%s function has wrong signature: %v", tf.name, tf.Type())
+
+	if setter, ok := treeStruct.(Setter); ok {
+		setter.SetTree(t)
 	}
-	tf.Set(reflect.MakeFunc(tf.Type(), tf.impl))
+
 	return nil
 }
 
@@ -121,27 +97,37 @@ func checkCompare(cmp reflect.Value) error {
 		return errors.New("Compare is not a method")
 	}
 
-	if cmpType.NumIn() != 2 || cmpType.NumOut() != 1 {
-		return errors.New("Compare method has the wrong signature")
+	if cmpType.NumIn() < 1 {
+		return errors.New("Compare method must take two arguments")
 	}
 
-	if cmpType.In(0) != cmpType.In(1) {
-		return errors.New("Compare method arguments do not match")
-	}
-
-	if kind := cmpType.Out(0).Kind(); kind != reflect.Int {
-		return fmt.Errorf("Compare method has wrong return type %v", kind)
+	elemType := cmpType.In(0)
+	in := []reflect.Type{elemType, elemType}
+	out := []reflect.Type{reflect.TypeOf(0)}
+	correctType := reflect.FuncOf(in, out, false)
+	if cmpType != correctType {
+		return fmt.Errorf("Compare method should have signature: %v", correctType)
 	}
 
 	return nil
 }
 
-func makeTree(cmp reflect.Value) *tree {
-	t := tree{elemType: cmp.Type().In(0)}
-	t.insertType = reflect.FuncOf([]reflect.Type{t.elemType}, []reflect.Type{}, false)
-	t.deleteType = t.insertType
-	t.lookupType = reflect.FuncOf([]reflect.Type{t.elemType}, []reflect.Type{t.elemType, reflect.TypeOf(false)}, false)
-	t.valueType = reflect.FuncOf([]reflect.Type{reflect.TypeOf(&Node{})}, []reflect.Type{t.elemType}, false)
+func makeTree(cmp reflect.Value) (*Tree, map[string]*treeFn) {
+	t := Tree{elemType: cmp.Type().In(0)}
+	fns := make(map[string]*treeFn)
+
+	in := []reflect.Type{t.elemType}
+	out := []reflect.Type{}
+	fns["Insert"] = &treeFn{impl: t.insert, typ: reflect.FuncOf(in, out, false)}
+	fns["Delete"] = &treeFn{impl: t.delete, typ: fns["Insert"].typ}
+
+	in = []reflect.Type{t.elemType}
+	out = []reflect.Type{t.elemType, reflect.TypeOf(false)}
+	fns["Lookup"] = &treeFn{impl: t.lookup, typ: reflect.FuncOf(in, out, false)}
+
+	in = []reflect.Type{reflect.TypeOf(&Node{})}
+	out = []reflect.Type{t.elemType}
+	fns["Value"] = &treeFn{impl: t.value, typ: reflect.FuncOf(in, out, false)}
 
 	args := make([]reflect.Value, 2)
 	t.cmp = func(a, b reflect.Value) int8 {
@@ -158,10 +144,10 @@ func makeTree(cmp reflect.Value) *tree {
 		}
 	}
 
-	return &t
+	return &t, fns
 }
 
-func (t *tree) lookup(in []reflect.Value) []reflect.Value {
+func (t *Tree) lookup(in []reflect.Value) []reflect.Value {
 	val := in[0]
 	if val.Type() != t.elemType {
 		panic("lookup of wrong type")
@@ -180,7 +166,7 @@ func (t *tree) lookup(in []reflect.Value) []reflect.Value {
 	return []reflect.Value{reflect.Zero(t.elemType), reflect.ValueOf(false)}
 }
 
-func (t *tree) insert(in []reflect.Value) []reflect.Value {
+func (t *Tree) insert(in []reflect.Value) []reflect.Value {
 	val := in[0]
 	if val.Type() != t.elemType {
 		panic("Inserting wrong type")
@@ -190,7 +176,7 @@ func (t *tree) insert(in []reflect.Value) []reflect.Value {
 	return nil
 }
 
-func (t *tree) insert1(val reflect.Value, p *Node, qp **Node) bool {
+func (t *Tree) insert1(val reflect.Value, p *Node, qp **Node) bool {
 	q := *qp
 	if q == nil {
 		t.size++
@@ -233,7 +219,7 @@ func insertFix(c int8, t **Node) bool {
 	return false
 }
 
-func (t *tree) delete(in []reflect.Value) []reflect.Value {
+func (t *Tree) delete(in []reflect.Value) []reflect.Value {
 	val := in[0]
 	if val.Type() != t.elemType {
 		panic("Deleting wrong type")
@@ -243,7 +229,7 @@ func (t *tree) delete(in []reflect.Value) []reflect.Value {
 	return nil
 }
 
-func (t *tree) delete1(val reflect.Value, qp **Node) bool {
+func (t *Tree) delete1(val reflect.Value, qp **Node) bool {
 	q := *qp
 	if q == nil {
 		return false
@@ -364,20 +350,32 @@ func rotate(c int8, s *Node) *Node {
 	return r
 }
 
-func (t *tree) value(in []reflect.Value) []reflect.Value {
+func (t *Tree) value(in []reflect.Value) []reflect.Value {
 	n := in[0].Interface().(*Node)
 	return []reflect.Value{n.val}
 }
 
-func (t *tree) min() *Node {
+// Size returns the number of elements in the tree.
+func (t *Tree) Size() int {
+	return t.size
+}
+
+// Root returns the root node of the tree.
+func (t *Tree) Root() *Node {
+	return t.root
+}
+
+// Min returns the minimum ordered element of the tree.
+func (t *Tree) Min() *Node {
 	return t.bottom(0)
 }
 
-func (t *tree) max() *Node {
+// Max returns the maximum ordered element of the tree.
+func (t *Tree) Max() *Node {
 	return t.bottom(1)
 }
 
-func (t *tree) bottom(d int) *Node {
+func (t *Tree) bottom(d int) *Node {
 	n := t.root
 	if n == nil {
 		return nil
@@ -389,10 +387,14 @@ func (t *tree) bottom(d int) *Node {
 	return n
 }
 
+// Prev returns the previous Node in an in-order walk
+// of the Tree holding the Node n.
 func (n *Node) Prev() *Node {
 	return n.walk1(0)
 }
 
+// Next returns the next Node in an in-order walk
+// of the Tree holding the Node n.
 func (n *Node) Next() *Node {
 	return n.walk1(1)
 }

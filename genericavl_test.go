@@ -23,6 +23,7 @@ type IntToStringTree struct {
 	Insert func(*IntToString)
 	Delete func(*IntToString)
 	Lookup func(*IntToString) (*IntToString, bool)
+	Value  func(*Node) *IntToString
 }
 
 func (i *IntToStringTree) Compare(a, b *IntToString) int {
@@ -37,15 +38,14 @@ func (i *IntToStringTree) Compare(a, b *IntToString) int {
 }
 
 type IntTree struct {
+	*Tree
 	Insert func(int)
 	Delete func(int)
 	Lookup func(int) (int, bool)
-	Min    func() *Node
-	Max    func() *Node
 	Value  func(*Node) int
 }
 
-func (i *IntTree) Compare(a, b int) int {
+func (tree *IntTree) Compare(a, b int) int {
 	switch {
 	case a < b:
 		return -1
@@ -54,6 +54,10 @@ func (i *IntTree) Compare(a, b int) int {
 	case a > b:
 		return 1
 	}
+}
+
+func (tree *IntTree) SetTree(t *Tree) {
+	tree.Tree = t
 }
 
 func TestMain(m *testing.M) {
