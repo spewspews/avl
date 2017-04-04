@@ -36,18 +36,16 @@ func (i *IntToStringTree) Compare(a, b *IntToString) int {
 	}
 }
 
-type Int int
-
 type IntTree struct {
-	Insert func(Int)
-	Delete func(Int)
-	Lookup func(Int) (Int, bool)
+	Insert func(int)
+	Delete func(int)
+	Lookup func(int) (int, bool)
 	Min    func() *Node
 	Max    func() *Node
-	Value  func(*Node) Int
+	Value  func(*Node) int
 }
 
-func (i *IntTree) Compare(a, b Int) int {
+func (i *IntTree) Compare(a, b int) int {
 	switch {
 	case a < b:
 		return -1
@@ -106,7 +104,7 @@ func newRandIntTree(n, randMax int, t *testing.T) *IntTree {
 	}
 
 	for i := 0; i < n; i++ {
-		tree.Insert(Int(rng.Intn(randMax)))
+		tree.Insert(rng.Intn(randMax))
 	}
 	return &tree
 }
