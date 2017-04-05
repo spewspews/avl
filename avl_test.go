@@ -16,29 +16,6 @@ const (
 
 var rng *rand.Rand
 
-type IntTree struct {
-	*avl.Tree
-	Insert func(int)
-	Delete func(int)
-	Lookup func(int) (int, bool)
-	Value  func(*avl.Node) int
-}
-
-func (IntTree) Compare(a, b int) int {
-	switch {
-	case a < b:
-		return -1
-	default:
-		return 0
-	case a > b:
-		return 1
-	}
-}
-
-func (tree *IntTree) SetTree(t *avl.Tree) {
-	tree.Tree = t
-}
-
 func TestMain(m *testing.M) {
 	seed := time.Now().UTC().UnixNano()
 	rng = rand.New(rand.NewSource(seed))
