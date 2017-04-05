@@ -16,8 +16,8 @@ type Node struct {
 }
 
 // Setter provides access to the underlying Tree data structure
-// by passing the data structure to the interface's method.
-// This provides access to general Tree methods such as Min,
+// by passing the data structure to this interface's SetTree method.
+// This provides access to the general Tree methods Min,
 // Max, Root, and Size.
 type Setter interface {
 	SetTree(*Tree)

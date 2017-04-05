@@ -24,7 +24,7 @@ type IntTree struct {
 	Value  func(*avl.Node) int
 }
 
-func (tree *IntTree) Compare(a, b int) int {
+func (IntTree) Compare(a, b int) int {
 	switch {
 	case a < b:
 		return -1
