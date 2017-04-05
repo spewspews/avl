@@ -61,13 +61,13 @@ func Example() {
 		fmt.Println(si.val)
 	}
 
-	// The folowing does not output anything.
+	// The following does not output anything.
 	si, ok = m.Lookup(&StringInt{key: "baz"})
 	if ok {
 		fmt.Println(si.val)
 	}
 
-	// The folowing does not output anything.
+	// The following does not output anything.
 	m.Delete(&StringInt{key: "foo"})
 	si, ok = m.Lookup(&StringInt{key: "foo"})
 	if ok {
