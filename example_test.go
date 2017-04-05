@@ -34,24 +34,16 @@ func (m *StringIntMap) Compare(a, b *StringInt) int {
 	}
 }
 
-func Example() {
+func ExampleMake() {
 	var m StringIntMap
 	avl.Make(&m)
+	// Type safety: the following will not compile
+	// m.insert("foo")
 	m.Insert(&StringInt{"foo", 10})
-	m.Insert(&StringInt{"bar", 11})
 	si, ok := m.Lookup(&StringInt{key: "foo"})
-	if ok {
-		fmt.Println(si.val)
-	}
-	si, ok = m.Lookup(&StringInt{key: "bar"})
-	if ok {
-		fmt.Println(si.val)
-	}
-	si, ok = m.Lookup(&StringInt{key: "baz"})
 	if ok {
 		fmt.Println(si.val)
 	}
 	// Output:
 	// 10
-	// 11
 }
