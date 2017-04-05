@@ -13,14 +13,7 @@ type StringInt struct {
 
 type StringIntMap struct {
 	Insert func(*StringInt)
-	Delete func(*StringInt)
 	Lookup func(*StringInt) (*StringInt, bool)
-	Value  func(*avl.Node) *StringInt
-	*avl.Tree
-}
-
-func (m *StringIntMap) SetTree(t *avl.Tree) {
-	m.Tree = t
 }
 
 func (m *StringIntMap) Compare(a, b *StringInt) int {
