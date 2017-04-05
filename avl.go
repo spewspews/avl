@@ -1,5 +1,5 @@
-// Package genericavl implements a type-safe generic AVL balanced binary tree.
-package genericavl
+// Package avl implements a type-safe generic AVL balanced binary tree.
+package avl
 
 import (
 	"errors"

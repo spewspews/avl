@@ -1,4 +1,4 @@
-package genericavl
+package avl
 
 import (
 	"math/rand"
