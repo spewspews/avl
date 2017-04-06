@@ -6,13 +6,16 @@ import (
 	"github.com/spewspews/avl"
 )
 
+// StringInt is the key value pair of the mapping
+// from strings to integers.
 type StringInt struct {
 	key string
 	val int
 }
 
-// This struct provides functions that will be filled
-// in by the call to Make.
+// StringIntMap implements a map from strings to integers.
+// The struct provides functions that will be provided
+// by the call to avl.Make.
 type StringIntMap struct {
 	Insert func(*StringInt)
 	Delete func(*StringInt)
@@ -39,9 +42,15 @@ func (StringIntMap) Compare(a, b *StringInt) int {
 
 func Example() {
 	var m StringIntMap
+	// This call provides the implementations of
+	// StringIntMap.Insert, StringIntMap.Delete, and
+	// StringIntMap.Lookup.
 	avl.Make(&m)
+
 	// Type safety: the following will not compile
 	// m.Insert("foo")
+	// StringIntMap.Insert only accepts values of type
+	// *StringInt.
 	m.Insert(&StringInt{"foo", 10})
 	m.Insert(&StringInt{"bar", 11})
 
@@ -50,6 +59,7 @@ func Example() {
 		fmt.Println(si.val)
 		si.val = 20
 	}
+
 	si, ok = m.Lookup(&StringInt{key: "bar"})
 	if ok {
 		fmt.Println(si.val)
@@ -61,19 +71,21 @@ func Example() {
 		fmt.Println(si.val)
 	}
 
-	// The following does not output anything.
+	// The following does not output anything becuase
+	// nothing is found.
 	si, ok = m.Lookup(&StringInt{key: "baz"})
 	if ok {
 		fmt.Println(si.val)
 	}
 
-	// The following does not output anything.
 	m.Delete(&StringInt{key: "foo"})
+	// The following does not output anything.
+	// because the *StringInt with key "foo" has
+	// been removed.
 	si, ok = m.Lookup(&StringInt{key: "foo"})
 	if ok {
 		fmt.Println(si.val)
 	}
-
 	// Output:
 	// 10
 	// 11

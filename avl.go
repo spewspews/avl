@@ -48,7 +48,7 @@ type DummyTree struct {
 	Lookup func(Dummy) (Dummy, bool)
 
 	// Value returns the Dummy value from the *avl.Node.
-	Value  func(*Node) Dummy
+	Value func(*Node) Dummy
 }
 
 // Compare is used to determine
