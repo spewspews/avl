@@ -41,7 +41,7 @@ func Example() {
 	var m StringIntMap
 	avl.Make(&m)
 	// Type safety: the following will not compile
-	// m.insert("foo")
+	// m.Insert("foo")
 	m.Insert(&StringInt{"foo", 10})
 	m.Insert(&StringInt{"bar", 11})
 

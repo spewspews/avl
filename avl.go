@@ -31,6 +31,49 @@ type Tree struct {
 	cmp      func(a, b reflect.Value) int8
 }
 
+// DummyTree is for documentation purposes only. It is an example
+// of the kind of struct that should be passed as a pointer to avl.Make.
+type DummyTree struct {
+	// The underlying Tree data structure.
+	*Tree
+
+	// Insert inserts a new Dummy element into the Tree. Its argument
+	// must match the argument type of DummyTree.Compare.
+	Insert func(Dummy)
+
+	// Delete deletes a Dummy element from the tree if found.
+	Delete func(Dummy)
+
+	// Lookup returns a Dummy element and true if found.
+	Lookup func(Dummy) (Dummy, bool)
+
+	// Value returns the Dummy value from the *avl.Node.
+	Value  func(*Node) Dummy
+}
+
+// Compare is used to determine
+// how two elements stored in the avl.Tree compare
+// and should return an integer less than, equal to, or greater than
+// 0 as the two elements are less
+// than, equal to, or greater than each other.
+// Any struct passed as a reference to avl.Make must have this method defined
+// as it is used to deduce the type of the
+// elements stored in the Tree as well as in the implementation
+// of the tree operations.
+func (DummyTree) Compare(a, b Dummy) int {
+	return 0
+}
+
+// SetTree is passed a pointer to the underlying avl.Tree structure
+// to provide access to the non type specific Tree operations
+// such as Tree.Root, Tree.Min, Tree.Max, and Tree.Size.
+func (d *DummyTree) SetTree(t *Tree) {
+	d.Tree = t
+}
+
+// Dummy is an empty value for the purposes of documentation.
+type Dummy interface{}
+
 type treeFn struct {
 	impl func([]reflect.Value) []reflect.Value
 	typ  reflect.Type
@@ -51,7 +94,7 @@ type treeFn struct {
 //    Delete func(T)
 //    Lookup func(T) (T, bool)
 //    Value  func(*Node) T
-// Make will fill in these functions with implementations that
+// Make will provide implementations of these functions that
 // allow type-safe access to values in the tree. If any of the
 // functions are missing, then they will be skipped.
 //
