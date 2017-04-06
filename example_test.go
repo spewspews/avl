@@ -14,7 +14,7 @@ type StringInt struct {
 }
 
 // StringIntMap implements a map from strings to integers.
-// The struct provides functions that will be provided
+// The struct contains functions that will be provided
 // by the call to avl.Make.
 type StringIntMap struct {
 	Insert func(*StringInt)
