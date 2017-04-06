@@ -83,11 +83,11 @@ type treeFn struct {
 // manipulation functions. TreeStruct must be a pointer to
 // a struct with a pointer receiver method named Compare.
 // Compare must have the signature:
-//     func(a, b T) int
+//     func(α, β T) int
 // where T is an arbitrary type. Compare is the only method
 // that needs to be implemented and it should return an integer
 // less than, equal to, or greater than 0 depending on whether
-// the value a compares less than, equal to, or greater than 0,
+// the value α compares less than, equal to, or greater than β,
 // respectively. The TreeStruct itself should contain
 // fields for functions of the following types:
 //    Insert func(T)
