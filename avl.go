@@ -74,13 +74,12 @@ func (d *DummyTree) SetTree(t *Tree) {
 // Dummy is an empty value for the purposes of documentation.
 type Dummy interface{}
 
-// Make fills in a structure treeStruct with Tree access and
-// manipulation functions. TreeStruct must be a pointer to
-// a struct with a pointer receiver method named Compare.
-// Compare must have the signature:
+// Make creates and provides implementations of type-safe
+// balanced binary tree operations. The argument
+// TreeStruct must be a pointer to a struct that has a method
+// named Compare with the signature
 //     func(α, β T) int
-// where T is an arbitrary type. Compare is the only method
-// that needs to be implemented and it should return an integer
+// where T is an arbitrary type. Compare should return an integer
 // less than, equal to, or greater than 0 depending on whether
 // the value α compares less than, equal to, or greater than β,
 // respectively. The TreeStruct itself should contain
@@ -91,12 +90,15 @@ type Dummy interface{}
 //    Value  func(*Node) T
 // Make will provide implementations of these functions that
 // allow type-safe access to values in the tree. There is no
-// error if any of the above functions are missing.
+// error if any of the above functions are missing. See the
+// documentation for DummyTree for more information on these
+// functions.
 //
 // If treeStruct implements the Setter interface, then Make will
 // pass the underlying Tree data structure to the SetTree method
 // to provide access to the non type-specific methods defined on the
 // data structure such as, avl.Min, avl.Max, avl.Root, and avl.Size.
+// See the documentation for Node.Next for an example.
 func Make(treeStruct interface{}) error {
 	tsVal := reflect.ValueOf(treeStruct)
 
