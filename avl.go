@@ -74,11 +74,6 @@ func (d *DummyTree) SetTree(t *Tree) {
 // Dummy is an empty value for the purposes of documentation.
 type Dummy interface{}
 
-type treeFn struct {
-	impl func([]reflect.Value) []reflect.Value
-	typ  reflect.Type
-}
-
 // Make fills in a structure treeStruct with Tree access and
 // manipulation functions. TreeStruct must be a pointer to
 // a struct with a pointer receiver method named Compare.
@@ -95,32 +90,27 @@ type treeFn struct {
 //    Lookup func(T) (T, bool)
 //    Value  func(*Node) T
 // Make will provide implementations of these functions that
-// allow type-safe access to values in the tree. If any of the
-// functions are missing, then they will be skipped.
+// allow type-safe access to values in the tree. There is no
+// error if any of the above functions are missing.
 //
 // If treeStruct implements the Setter interface, then Make will
 // pass the underlying Tree data structure to the SetTree method
-// to provide access to non type-specific methods defined on the
-// data structure such as, Min, Max, Root, and Size.
+// to provide access to the non type-specific methods defined on the
+// data structure such as, avl.Min, avl.Max, avl.Root, and avl.Size.
 func Make(treeStruct interface{}) error {
 	tsVal := reflect.ValueOf(treeStruct)
 
 	cmp := tsVal.MethodByName("Compare")
-	if err := checkCompare(cmp); err != nil {
+	err := checkCompare(cmp)
+	if err != nil {
 		return err
 	}
 
-	t, fns := makeTree(cmp)
-
-	for name, tf := range fns {
-		fnVal := tsVal.Elem().FieldByName(name)
-		if !fnVal.IsValid() {
-			continue
-		}
-		if fnVal.Type() != tf.typ {
-			return fmt.Errorf("%s function should have signature: %v", name, tf.typ)
-		}
-		fnVal.Set(reflect.MakeFunc(tf.typ, tf.impl))
+	t := &Tree{elemType: cmp.Type().In(0)}
+	t.cmp = makeCmp(cmp)
+	err = t.makeFnImpls(tsVal)
+	if err != nil {
+		return err
 	}
 
 	if setter, ok := treeStruct.(Setter); ok {
@@ -155,25 +145,9 @@ func checkCompare(cmp reflect.Value) error {
 	return nil
 }
 
-func makeTree(cmp reflect.Value) (*Tree, map[string]*treeFn) {
-	t := Tree{elemType: cmp.Type().In(0)}
-	fns := make(map[string]*treeFn)
-
-	in := []reflect.Type{t.elemType}
-	out := []reflect.Type{}
-	fns["Insert"] = &treeFn{impl: t.insert, typ: reflect.FuncOf(in, out, false)}
-	fns["Delete"] = &treeFn{impl: t.delete, typ: fns["Insert"].typ}
-
-	in = []reflect.Type{t.elemType}
-	out = []reflect.Type{t.elemType, reflect.TypeOf(false)}
-	fns["Lookup"] = &treeFn{impl: t.lookup, typ: reflect.FuncOf(in, out, false)}
-
-	in = []reflect.Type{reflect.TypeOf(&Node{})}
-	out = []reflect.Type{t.elemType}
-	fns["Value"] = &treeFn{impl: t.value, typ: reflect.FuncOf(in, out, false)}
-
+func makeCmp(cmp reflect.Value) func(reflect.Value, reflect.Value) int8 {
 	args := make([]reflect.Value, 2)
-	t.cmp = func(a, b reflect.Value) int8 {
+	return func(a, b reflect.Value) int8 {
 		args[0] = a
 		args[1] = b
 		r := cmp.Call(args)[0].Int()
@@ -186,8 +160,51 @@ func makeTree(cmp reflect.Value) (*Tree, map[string]*treeFn) {
 			return 1
 		}
 	}
+}
 
-	return &t, fns
+type treeFn struct {
+	impl func([]reflect.Value) []reflect.Value
+	in   []reflect.Type
+	out  []reflect.Type
+}
+
+func (t *Tree) makeFnImpls(tsVal reflect.Value) error {
+	fns := map[string]treeFn{
+		"Insert": {
+			t.insert,
+			[]reflect.Type{t.elemType},
+			[]reflect.Type{},
+		},
+		"Delete": {
+			t.delete,
+			[]reflect.Type{t.elemType},
+			[]reflect.Type{},
+		},
+		"Lookup": {
+			t.lookup,
+			[]reflect.Type{t.elemType},
+			[]reflect.Type{t.elemType, reflect.TypeOf(false)},
+		},
+		"Value": {
+			t.value,
+			[]reflect.Type{reflect.TypeOf(&Node{})},
+			[]reflect.Type{t.elemType},
+		},
+	}
+
+	for name, tf := range fns {
+		fnVal := tsVal.Elem().FieldByName(name)
+		if !fnVal.IsValid() {
+			continue
+		}
+		typ := reflect.FuncOf(tf.in, tf.out, false)
+		if fnVal.Type() != typ {
+			return fmt.Errorf("%s function should have signature: %v", name, typ)
+		}
+		fnVal.Set(reflect.MakeFunc(typ, tf.impl))
+	}
+
+	return nil
 }
 
 func (t *Tree) lookup(in []reflect.Value) []reflect.Value {
